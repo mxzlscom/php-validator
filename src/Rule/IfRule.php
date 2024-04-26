@@ -21,11 +21,17 @@ class IfRule implements RuleInterface
         $ifKey = $params[0];
         $ifValue = $params[1];
         // 如果存在目标值，则进行判断
-        if(isset($options[$ifKey]) && $options[$ifKey] == $ifValue){
-            // 必须存在当前值
-            if(!isset($options[$key])){
-                throw new ValidateException($message?:sprintf('%s 不能为空',$keyName));
+        if(isset($options[$ifKey])){
+            if($options[$ifKey] == $ifValue){
+                // 必须存在当前值
+                if(!isset($options[$key])){
+                    throw new ValidateException($message?:sprintf('%s 不能为空',$keyName));
+                }
+            }else{
+                // 不等于，则删除当前值
+                unset($options[$key]);
             }
+
         }
     }
 
