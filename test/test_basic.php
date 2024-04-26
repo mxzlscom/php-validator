@@ -130,8 +130,48 @@ class test_basic
         var_export($r);
     }
 
+    // 验证子对象
+    public static function test_child_list(){
+        $params = [
+            'contacts' => [
+                ['name' => '张三','age' => 24],
+                ['name' => '李四','age' => 'fa'],
+                ['name' => '王五','age' => '22'],
+            ],
+        ];
+
+        $rules = [
+            'contacts' => ['req',[
+                'name' => ['req'],
+                'age' => ['req','int'],
+            ]]
+        ];
+
+        $r = Validator::filter($params,$rules);
+        var_export($r);
+    }
+
+    // 验证子对象
+    public static function test_child_object(){
+        $params = [
+            'contact' =>                 ['name' => '张三','age' => 12],
+        ];
+
+        $rules = [
+            'contact' => [[
+                'name' => 'str',
+                'age' => 'req,int',
+            ]],
+        ];
+
+        $r = Validator::filter($params,$rules);
+        var_export($r);
+    }
+
 }
 
 
-test_basic::test_regex2();
+//test_basic::test_regex2();
+//test_basic::test_child_list();
+test_basic::test_child_object();
 
