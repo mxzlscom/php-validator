@@ -7,6 +7,7 @@ namespace Mengx\Validator;
 use Mengx\Validator\Rule\ChineseRule;
 use Mengx\Validator\Rule\FloatRule;
 use Mengx\Validator\Rule\IdentityRule;
+use Mengx\Validator\Rule\IfRule;
 use Mengx\Validator\Rule\IntegerRule;
 use Mengx\Validator\Rule\ListRule;
 use Mengx\Validator\Rule\PhoneRule;
@@ -29,9 +30,11 @@ class Validator
         'id' => IdentityRule::class,
         'int' => IntegerRule::class,
         'list' => ListRule::class,
+        'array' => ListRule::class,
         'phone' => PhoneRule::class,
         'url' => UrlRule::class,
         'regex' => RegexRule::class,
+        'if' => IfRule::class,
     ];
 
 
@@ -105,9 +108,11 @@ class Validator
 
             // 要明确的事，过滤可能过滤出空数据，这个是允许的。也就是没有任何数据，或者说是一个空数组，也就是说我最后是要返回一个空数组出去的
             if(is_array($originalRule)){
+                // 如果写法是数组写法
                 // 判断普通数组和map
                 $preRules = $originalRule;
             }else{
+                // 如果写法是 a,b,c 这种验证写法
                 $preRules = [];
                 if(strpos($originalRule,',') === false){
                     $preRules[] = $originalRule;
@@ -117,10 +122,10 @@ class Validator
             }
 
             $columnRules = [];
-            // parse original rules
+            // 遍历所有验证规则
             foreach ($preRules as $str){
                 if(is_string($str)){
-                    // handle message
+                    // 处理消息提示
                     if($index = strpos($str,':') === false){
                         $message = null;
                     }else{
@@ -128,7 +133,7 @@ class Validator
                         $message = $strOptions[1];
                         $str = $strOptions[0];
                     }
-                    // handle rule args
+                    // 处理传递的参数
                     if($index = strpos($str,'!') === false){
                         $args = null;
                         $ruleName = $str;
@@ -137,8 +142,9 @@ class Validator
                         $args = $strOptions[1]; // 20~100
                         $ruleName = $strOptions[0]; // int
                     }
-                    // check
+                    // 组装验证规则
                     $columnRules[] = [
+                        'target' => 'self',
                         'rule' => $ruleName,
                         'option' => [
                             'message' => $message,
@@ -146,21 +152,47 @@ class Validator
                         ],
                     ];
                 }elseif($str instanceof ValidatorRule){
+                    // 组装验证规则
                     $columnRules[] = [
+                        'target' => 'self',
                         'rule' => $str->getRule(),
                         'option' => [
                             'message' => $str->getMessage(),
                             'args' => $str->getArgs(),
                         ],
                     ];
+                }elseif(is_array($str)){
+                    // 如果验证提供的是一个数组，则是子对象的一个处理
+                    $columnRules[] = [
+                        'target' => 'children',
+                        'children_rule' => $str,
+                    ];
                 }
             }
 
+            // 便利验证规则，并处理
+
             foreach ($columnRules as $columnRule){
-                $instance = self::$aliasMap[$columnRule['rule']];
-                $instance::filter($params,$key,$keyName,$columnRule['option']['args'],$columnRule['option']['message']);
+                if($columnRule['target'] === 'self'){
+                    $instance = self::$aliasMap[$columnRule['rule']];
+                    $instance::filter($params,$key,$keyName,$columnRule['option']['args'],$columnRule['option']['message']);
+                }elseif ($columnRule['target'] === 'children'){
+                    if(isset($params[$key])){
+                        // 判断是 关联数组还是索引数组
+                        if(array_keys($params[$key]) === range(0,count($params[$key]) - 1)){
+                            // 数组
+                            foreach ($params[$key] as $childKey => $childValue){
+                                $params[$key][$childKey] = self::filter($params[$key][$childKey],$columnRule['children_rule']);
+                            }
+                        }else{
+                            $params[$key] = self::filter($params[$key],$columnRule['children_rule']);
+                        }
+                    }
+                }
+
             }
 
+            // 将经过验证器处理的参数，放到新的数组里
             if(isset($params[$key])){
                 $filteredOptions[$key] = $params[$key];
             }
