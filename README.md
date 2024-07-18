@@ -6,4 +6,4 @@
 ### composer 引入包
 
 
-composer require mengx/validator
+composer require mengx/validator:dev-master ignore-platform-reqs
